@@ -1,23 +1,16 @@
 var router = require('express').Router();
-const Restaurantes = require('../modelos/Restaurantes');
-const Promociones = require('../modelos/Promociones');
-var sumatoria = 0;
+const Restaurantes = require('../modelos/restaurantes.js');
+const Promociones = require('../modelos/promociones.js');
 
 
 //REQ 1 Obtener todas las promociones vigentes (que no han cumplido su fecha de expiración) PENDIENTE
-router.get('/obtener/PromocionesVigentes', async (req, res) => {
+router.get('/obtenerPromocionesVigentes', async (req, res) => {
     let fechaActual = new Date();
-    Promociones.find({fechaExpiracion : {$gt: new Date(fechaActual)}}).sort({fechaExpiracion:1})
+    Promociones.find({fechaInactivar : {$gt: new Date(fechaActual)}}).sort({fechaInactivar:1})
         .then((LasPromociones) => {
-            sumatoria = null;
-            for(i=0; i < LasPromociones.length; i++){
-            if(LasPromociones[i].estado === true){
-                sumatoria = sumatoria +1;
-            }
-            }           
+                     
            res.json({
                 "status": "ok",
-                "Registros":sumatoria,
                 "nodo":LasPromociones
             });
         })
@@ -30,7 +23,7 @@ router.get('/obtener/PromocionesVigentes', async (req, res) => {
 });
 
 //REQ 2 Obtener las cinco promociones Premium más recientes LISTO
-router.get('/obtener/PromocionesPremium', async (req, res) => {
+router.get('/obtenerPromocionesPremium', async (req, res) => {
 
     Promociones.find({premium:true}).sort({premium:1}).limit(5)
     .then((LasPromociones) => {
@@ -55,49 +48,17 @@ router.get('/obtener/PromocionesPremium', async (req, res) => {
     });
 
 });
-//REQ 2.1 Obtener las promociones Premium más recientes (cantidad por Url) LISTO
-router.get('/obtener/PromocionesPremium/:valor', async (req, res) => {
 
-    let valor = parseInt(req.params.valor);
-    Promociones.find({premium:true}).sort({premium:1}).limit(valor)
-    .then((LasPromociones) => {
-        sumatoria = null;
-            for(i=0; i < LasPromociones.length; i++){
-            if(LasPromociones[i].premium === true){
-                sumatoria = sumatoria + 1;
-            }
-            }
-       res.json({
-            "status": "ok",
-            "Registros":sumatoria,
-            "nodo":LasPromociones
-
-        });
-    })
-    .catch((err) => {
-        res.json({
-            "status": "fail",
-            "error": err
-        });
-    });
-
-});
 
 //REQ 3 Obtener las promociones próximas a expirar (usted define el criterio de proximidad) FALTANTE 
-router.get('/obtener/PromocionesPoExpirar/:cantidad', async (req, res) => {
+router.get('/obtenerPromocionesPoExpirar/:cantidad', async (req, res) => {
     let fechaActual = new Date();
     let cantidad = parseInt(req.params.cantidad); 
-    Promociones.find({fechaExpiracion : {$gt: new Date(fechaActual)},estado:true}).sort({fechaExpiracion:1}).limit(cantidad)
+    Promociones.find({fechaInactivar : {$gt: new Date(fechaActual)},activo:true}).sort({fechaInactivar:1}).limit(cantidad)
         .then((LasPromociones) => {
-            sumatoria = null;
-            for(i=0; i < LasPromociones.length; i++){
-            if(LasPromociones[i].estado === true){
-                sumatoria = sumatoria + 1;
-            }
-            }
+            
            res.json({
                 "status": "ok",
-                "Registros":sumatoria,
                 "nodo":LasPromociones
             });
         })
@@ -111,7 +72,7 @@ router.get('/obtener/PromocionesPoExpirar/:cantidad', async (req, res) => {
 });
 
 //REQ 4 Obtener toda la información de una promoción en particular, incluyendo al restaurante LISTO
-router.get('/obtener/info/unaPromocionConSuRestaurante/:id', async (req, res) => {
+router.get('/obtenerInfounaPromocionConSuRestaurante/:id', async (req, res) => {
     let idTarget = req.params.id;
     Promociones.findById(idTarget)
         .then((promo) => {
@@ -138,23 +99,16 @@ router.get('/obtener/info/unaPromocionConSuRestaurante/:id', async (req, res) =>
 });
 
 //REQ 5 Obtener todas las promociones de un mismo restaurante LISTO
-router.get('/obtener/PromocionesMismoRestaurante/:id', async (req, res) => {
+router.get('/obtenerPromocionesMismoRestaurante/:id', async (req, res) => {
     let idTarget = req.params.id;
     Promociones.find({idRestaurante:idTarget})
         .then((LasPromociones) => {
 
             Restaurantes.findById(idTarget)
             .then((Restaurant) => {
-
-            sumatoria = null;
-            for(i=0; i < LasPromociones.length; i++){
-            if(LasPromociones[i].estado === true || LasPromociones[i].estado === false) {
-                sumatoria = sumatoria + 1;
-            }
-            }
+ 
             res.json({
                 "status": "ok",
-                "Canridad de Promociones":sumatoria,
                 "Nodo": LasPromociones,
                 "Restaurante":Restaurant
    
@@ -171,11 +125,11 @@ router.get('/obtener/PromocionesMismoRestaurante/:id', async (req, res) => {
 });
 
 //REQ 6 Crear un nuevo restaurante de pautas LISTO
-router.post('/crear/nuevoRestaurante', async (req, res) => {
+router.post('/crearNuevoRestaurante', async (req, res) => {
     let miNuevoRestaurante = new Restaurantes({
         nombre: req.body.nombre,
-        direccion: req.body.direccion,
-        estado : req.body.estado
+        direccion: req.body.direccion
+       
     });
 
     miNuevoRestaurante.save()
@@ -196,12 +150,11 @@ router.post('/crear/nuevoRestaurante', async (req, res) => {
 //REQ 7 Crear una nueva promoción y vincularla con uno de los restaurantes existentes LISTO
 router.post('/crearPromocion', async (req, res) => {
     let miNuevoPromocion = new Promociones({
-        titulo: req.body.titulo,
-        contenido: req.body.contenido,
+        nombre: req.body.nombre,
+        carta: req.body.carta,
         premium: req.body.premium,
-        estado: req.body.estado,
-        fechaInicial: req.body.fechaInicial,
-        fechaExpiracion: req.body.fechaExpiracion,
+        activo: req.body.activo,
+        fechaInactivar: req.body.fechaInactivar,
         idRestaurante: req.body.idRestaurante
     });
 
@@ -221,7 +174,7 @@ router.post('/crearPromocion', async (req, res) => {
 });
 
 //REQ 8 Actualizar un solo campo a la vez de restaurantes LISTO
-router.put('/actualizar/DatoDeUnRestaurante/:id', async (req, res) => {
+router.put('/actualizarDatoDeUnRestaurante/:id', async (req, res) => {
 
     Restaurantes.findByIdAndUpdate(req.params.id,
         req.body.queryUpdate)
@@ -242,7 +195,7 @@ router.put('/actualizar/DatoDeUnRestaurante/:id', async (req, res) => {
 });
 
 //REQ 8 Actualizar un solo campo a la vez de promociones LISTO
-router.put('/actualizar/unDatoDePromo/:id', async (req, res) => {
+router.put('/actualizarUnDatoDePromo/:id', async (req, res) => {
 
     Promociones.findByIdAndUpdate(req.params.id,
         req.body.queryUpdate)
@@ -263,9 +216,9 @@ router.put('/actualizar/unDatoDePromo/:id', async (req, res) => {
 });
 
 //Desactivar (o eliminar) una restaurante existente
-router.put('/desactivar/restaurante/:id', async (req, res) => {
+router.put('/desactivarRestaurante/:id', async (req, res) => {
     let idTarget = req.params.id;
-    Restaurantes.findByIdAndUpdate(idTarget,{ estado : false })
+    Restaurantes.findByIdAndUpdate(idTarget,{ activo : false })
         .then(() => {
             res.json({
                 "status": "ok",
@@ -283,8 +236,8 @@ router.put('/desactivar/restaurante/:id', async (req, res) => {
 });
 
 //Desactivar (o eliminar) una promoción existente
-router.put('/desactivar/promocion/:id', async (req, res) => {
-    Promociones.findByIdAndUpdate(idTarget,{ estado : false })
+router.put('/desactivarPromocion/:id', async (req, res) => {
+    Promociones.findByIdAndUpdate(idTarget,{ activo : false })
         .then(() => {
             res.json({
                 "status": "ok",
@@ -319,19 +272,15 @@ router.get('/obtenerTodosLosRestaurantes', async (req, res) => {
         });
 
 });
-//Obtener Restaurante po ID
-router.get('/obtenerRestaurantesPorId/:id', async (req, res) => {
 
-    let idTarget = req.params.id;
+router.get('/obtenerPromociones', async (req, res) => {
 
-    Restaurantes.findById(idTarget)
-        .then((elRestaurante) => {
-
-                    res.json({
-                        "status": "ok",
-                        "curso": elRestaurante
-                    });
-
+    Promociones.find()
+        .then((losNodos) => {
+            res.json({
+                "status": "ok",
+                "Promo": losNodos
+            });
         })
         .catch((err) => {
             res.json({
@@ -341,6 +290,7 @@ router.get('/obtenerRestaurantesPorId/:id', async (req, res) => {
         });
 
 });
+
 
 
 
